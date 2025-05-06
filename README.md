@@ -104,6 +104,15 @@ The pipeline will generate:
 
 ---
 
+### 🔒 Data Availability
+
+This repository **does not include any input data files** (e.g., `.xlsx`, `.pkl`) due to pending publication of the associated research. All scripts and pipeline components are provided for reproducibility and code review purposes only.
+
+If you are interested in collaborating or accessing the data, please contact the author or the corresponding members of the [Lee Lab at the University of Pittsburgh](https://www.cell.com/iscience/fulltext/S2589-0042%2821%2901301-6) after publication.
+
+
+---
+
 ## 🔍 Dependencies
 
 All Python packages are listed in `requirements.txt`, including:
@@ -128,15 +137,6 @@ For questions or collaboration inquiries, feel free to contact or visit: [github
 
 This project does not yet specify a license. Please contact the author for use in external research or applications.
 
-Yes — it's important (and professional) to clarify that **data are excluded due to publication restrictions**. This prevents confusion for anyone trying to run the code and signals that you're respecting confidentiality and co-authorship boundaries.
-
-Here’s a concise section you can add to the README under its own heading:
-
 ---
 
-### 🔒 Data Availability
-
-This repository **does not include any input data files** (e.g., `.xlsx`, `.pkl`) due to pending publication of the associated research. All scripts and pipeline components are provided for reproducibility and code review purposes only.
-
-If you are interested in collaborating or accessing the data, please contact the author or the corresponding members of the [Lee Lab at the University of Pittsburgh](https://www.cell.com/iscience/fulltext/S2589-0042%2821%2901301-6) after publication.
 
