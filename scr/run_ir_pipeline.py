@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import pandas as pd
-from data_processing import fix_ctrl_sheet, process_sheet, create_master
-from ensembl_api import EnsemblLookup
-from sequence_processing import SequenceProcessor
+from scr.process_ir_data import fix_ctrl_sheet, process_sheet, create_master
+from scr.ensembl_lookup import EnsemblLookup
+from scr.process_sequences import SequenceProcessor
 
 """
 This script orchestrates the IR data  pipeline by integrating modular components for data handling, 
