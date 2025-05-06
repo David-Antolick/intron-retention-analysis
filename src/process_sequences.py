@@ -52,6 +52,7 @@ class SequenceProcessor:
         self.df['Intron Sequence'] = self.df.apply(self._get_intron_seq, axis=1)
         self.df['Intron Sequence'] = self.df.apply(self._reverse_comp, axis=1)
     
+        return self
 
     def translate_sequences(self):
         """
