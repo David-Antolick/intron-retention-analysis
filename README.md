@@ -1,142 +1,127 @@
-# Intron Retention Analysis Pipeline
+# Intron‑Retention Analysis Pipeline
 
-This repository contains a modular and extensible pipeline for analyzing **intron retention (IR)** events using RNA-seq data pre-processed by [IRFinder](https://github.com/williamritchie/IRFinder). The analysis was developed for and used in the **Lee Lab** at the **University of Pittsburgh** as part of intron-centric transcriptomic research.
+**Downstream processing, annotation, and visualisation of IRFinder results — built during my time in the Robin Lee Lab (University of Pittsburgh).**
 
-The pipeline integrates raw IR ratio data with Ensembl gene annotations and performs sequence-level inference to characterize retained introns based on frame status, stop codon content, and positional information. Outputs include annotated datasets and comprehensive plots to guide biological interpretation and experimental prioritization.
-
----
-
-## 🧪 Background
-
-Intron retention plays a critical role in transcriptome regulation, often leading to **nonsense-mediated decay (NMD)** or altered protein products. Understanding which introns are retained, whether they disrupt coding frames, and how they vary across conditions can provide insight into stress responses, splicing regulation, and disease mechanisms.
-
-This pipeline automates the downstream processing of IRFinder output to:
-- Filter and normalize IR events by replicate quality.
-- Integrate Ensembl exon and gene annotations.
-- Reconstruct intron-retained sequences.
-- Translate sequences to predict frame and stop codon effects.
-- Visualize IR distributions, chromosomal breakdowns, and NMD classifications.
+> *This code **does not** run IRFinder itself.* It assumes that IRFinder has already produced per‑sample IR ratio spreadsheets. The pipeline ingests the Excel workbook provided by our lab manager (U2OS cells ± TNF‑α), cleans and merges the sheets, enriches events with Ensembl information, translates retained introns, and outputs publication‑ready summary tables and plots.
 
 ---
 
-## 📁 Project Structure
+## Why this exists
 
-```plaintext
-ir_analysis/
-├── src/                         # All modular Python scripts
-│   ├── process_ir_data.py       # IR ratio filtering and master merging
-│   ├── ensembl_lookup.py        # Fetches gene sequences and exon data via Ensembl REST/BioMart
-│   ├── process_sequences.py     # Extracts, translates, and annotates retained introns
-│   ├── run_ir_pipeline.py       # Main pipeline script (entry point)
-│   ├── analyze_coding_impact.py # Computes distances to exon junctions, stop codon logic
-│   ├── prepare_pickles.py       # Converts Excel sheets into pickled files for fast loading
-│   ├── plot_exploratory.py      # General CG content, stop codon, intron length plots
-│   ├── plot_intron_types.py     # NMD-based classification plots
-│   ├── plot_qc_metrics.py       # IR ratio and missing data visualizations
-├── data/                        # Input Excel files (excluded via .gitignore)
-├── pickles/                     # Pickled intermediate data (excluded)
-├── plots/                       # Output figures (excluded)
-├── requirements.txt
-├── .gitignore
-└── README.md
-````
+* **Automate QC & filtering** across dozens of samples / time‑points.
+* **Map events → gene context** via the Ensembl REST API.
+* **Predict coding consequences** — is an intron in‑frame, frame‑shifting, or introducing a premature stop?
+* **Produce reproducible figures** for lab meetings and manuscripts.
 
 ---
 
-## ⚙️ Installation
+## Directory layout
 
-You can run this pipeline in a **Python 3.12** environment or within a **VS Code dev container**.
-
-### Option 1: Native Environment
-
-```bash
-git clone https://github.com/David-Antolick/intron-retention-analysis.git
-cd intron-retention-analysis
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+```text
+intron-retention-analysis/
+├── src/
+│   ├── pickler.py              # Excel → .pkl conversion (faster reloads)
+│   ├── process_ir_data.py      # IR ratio filtering, ΔIR computation
+│   ├── ensembl_lookup.py       # Fetch sequences / exon coords from Ensembl
+│   ├── process_sequences.py    # Reconstruct & translate intron‑retained mRNA
+│   ├── analyze_coding_impact.py# Frame, stop‑codon, NMD classification
+│   ├── plot_qc_metrics.py      # Per‑replicate QC plots
+│   ├── plot_intron_types.py    # Pie chart: in‑frame vs out‑of‑frame, etc.
+│   ├── plot_exploratory.py     # Volcano & distribution plots
+│   └── run_ir_pipeline.py      # 🏃 One‑command orchestration
+├── backups/                    # Legacy scripts & notebooks
+├── data/
+│   ├── raw/                    # <‑ place IRFinder workbook here
+│   ├── pickles/                # auto‑generated by pickler.py
+│   └── results/                # final TSVs & figures
+├── requirements.txt            # Python 3.10+ deps
+└── .devcontainer/              # VS Code container for reproducibility
 ```
 
-### Option 2: Dev Container (VS Code)
+---
 
-* Open this folder in **VS Code**
-* Accept the prompt: *“Reopen in Container”*
-* It will auto-install all requirements
+## Quick‑start
+
+```bash
+# 1. Clone repository
+$ git clone https://github.com/<your‑org>/intron‑retention‑analysis.git
+$ cd intron‑retention‑analysis
+
+# 2. Install environment (venv, conda, or use the supplied dev‑container)
+$ pip install -r requirements.txt
+
+# 3. Add IRFinder Excel workbook
+$ mkdir -p data/raw && mv IR_U2OS_TNF.xlsx data/raw/
+
+# 4. Convert sheets to pickles (speeds up downstream reloads)
+$ python src/pickler.py data/raw/IR_U2OS_TNF.xlsx
+  # → data/pickles/df_CTRL.pkl, df_1HR.pkl, ...
+
+# 5. Run the full pipeline
+$ python src/run_ir_pipeline.py \
+      --pickles_dir data/pickles \
+      --normalized_counts data/raw/DESeq2_normalCounts.xlsx \
+      --out_dir data/results
+
+# 6. Browse results
+$ tree data/results
+  intron_stats.tsv
+  coding_impact.tsv
+  plots/
+      QC_ctrl.png
+      deltaIR_volcano.png
+      ...
+```
+
+### Minimal API
+
+```python
+from src.process_sequences import SequenceProcessor
+
+sp = SequenceProcessor()
+stop_events = sp.find_premature_stops("data/results/coding_impact.tsv")
+print(stop_events.head())
+```
 
 ---
 
-## ▶️ Running the Pipeline
+## Core workflow
 
-1. **Prepare Pickled Data**
+1. **pickler.py** – Reads each sheet (`CTRL`, `1HR`, `2HR`, `4HR`) from the Excel workbook → saves as compressed pickle (≈50× faster than re‑parsing `.xlsx`).
+2. **process\_ir\_data.py**
 
-   ```bash
-   python src/prepare_pickles.py data/IRratio_Master.xlsx
-   ```
+   * Filters low‑quality introns (splice‑allele warnings, low coverage).
+   * Merges replicates and computes ΔIR between time‑points.
+3. **ensembl\_lookup.py** – Queries Ensembl REST + BioMart to grab full transcript sequences and exon boundaries for every unique Ensembl ID.
+4. **process\_sequences.py**
 
-2. **Run the Main Pipeline**
-
-   ```bash
-   python run_ir_pipeline.py
-   ```
-
-3. Output will be saved to:
-
-   ```
-   data/final_output.xlsx
-   ```
-
-You may also run individual visualization modules to generate figures.
+   * Reconstructs the *retained‑intron* transcript for each event.
+   * Translates it in all three frames, flags in‑frame introns, and marks premature stop codons (`*`).
+5. **analyze\_coding\_impact.py** – Calculates distance to downstream exon‑junctions, predicts NMD vs. productive translation, and tags potential dominant‑negative truncations.
+6. **plot\_\*.py** – Generates QC barplots, intron‑type pie charts, ΔIR volcano plots, and chromosome heatmaps.
+7. **run\_ir\_pipeline.py** – A thin wrapper that chains everything, logs progress via `tqdm`, and writes tidy TSV + PNG outputs to `data/results`.
 
 ---
 
-## 📊 Example Outputs
+## Requirements
 
-The pipeline will generate:
+* Python 3.10+
+* pandas · numpy · matplotlib · seaborn
+* biopython · pybiomart · requests · tqdm
+* openpyxl (for Excel parsing)
 
-* **Excel files** with annotated IR events across all timepoints
-* **Plots** showing:
-
-  * IR ratio distributions
-  * Intron frame/stop classifications
-  * Chromosomal distribution of retained introns
-  * CG content vs. IR changes
-  * NMD likelihood via stop-to-exon distance
+A VS Code **dev‑container** is included for one‑click reproducibility (Ubuntu 22.04 + Python 3.12).
 
 ---
 
-### 🔒 Data Availability
+## Acknowledgements
 
-This repository **does not include any input data files** (e.g., `.xlsx`, `.pkl`) due to pending publication of the associated research. All scripts and pipeline components are provided for reproducibility and code review purposes only.
-
-If you are interested in collaborating or accessing the data, please contact the author or the corresponding members of the [Lee Lab at the University of Pittsburgh](https://www.cell.com/iscience/fulltext/S2589-0042%2821%2901301-6) after publication.
-
-
----
-
-## 🔍 Dependencies
-
-All Python packages are listed in `requirements.txt`, including:
-
-* `pandas`, `numpy`
-* `matplotlib`, `seaborn`
-* `biopython`
-* `tqdm`, `requests`
-* `pybiomart`
-* `openpyxl`
+* Workflow developed in the **Robin Lee Lab** (Dept. of Computational & Systems Biology, University of Pittsburgh).
+* Intron quantification via [**IRFinder**](https://github.com/williamritchie/IRFinder) (not bundled here).
+* Sequence data from **Ensembl REST API** and **BioMart**.
 
 ---
 
-## 🧠 Author
+## License
 
-Developed by **David Antolick** during research in the **Lee Lab** at the **University of Pittsburgh**, 2024–2025.
-For questions or collaboration inquiries, feel free to contact or visit: [github.com/David-Antolick](https://github.com/David-Antolick)
-
----
-
-## 📝 License
-
-This project does not yet specify a license. Please contact the author for use in external research or applications.
-
----
-
-
+Released under the **MIT License** – see `LICENSE` (or add one!). Contributions are welcome.
