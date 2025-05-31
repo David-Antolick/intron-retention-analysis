@@ -73,17 +73,6 @@ $ tree data/results
       ...
 ```
 
-### Minimal API
-
-```python
-from src.process_sequences import SequenceProcessor
-
-sp = SequenceProcessor()
-stop_events = sp.find_premature_stops("data/results/coding_impact.tsv")
-print(stop_events.head())
-```
-
----
 
 ## Core workflow
 
@@ -99,7 +88,7 @@ print(stop_events.head())
    * Translates it in all three frames, flags in‑frame introns, and marks premature stop codons (`*`).
 5. **analyze\_coding\_impact.py** – Calculates distance to downstream exon‑junctions, predicts NMD vs. productive translation, and tags potential dominant‑negative truncations.
 6. **plot\_\*.py** – Generates QC barplots, intron‑type pie charts, ΔIR volcano plots, and chromosome heatmaps.
-7. **run\_ir\_pipeline.py** – A thin wrapper that chains everything, logs progress via `tqdm`, and writes tidy TSV + PNG outputs to `data/results`.
+7. **run\_ir\_pipeline.py** – A thin wrapper that chains everything, logs progress via `tqdm`, and writes tidy CSV + PNG outputs to `data/results`.
 
 ---
 
@@ -108,7 +97,6 @@ print(stop_events.head())
 * Python 3.10+
 * pandas · numpy · matplotlib · seaborn
 * biopython · pybiomart · requests · tqdm
-* openpyxl (for Excel parsing)
 
 A VS Code **dev‑container** is included for one‑click reproducibility (Ubuntu 22.04 + Python 3.12).
 
